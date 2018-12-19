@@ -1,0 +1,11 @@
+name: 'field_group_background_and_link'
+type: module
+description: 'Field Group Background Image, Background Color and Link'
+core: 8.x
+package: 'Fields'
+dependencies:
+  - drupal:field
+  - drupal:field_group
+  - drupal:container_tag
+
+version: '8.x-0.1'
