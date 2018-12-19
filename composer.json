@@ -1,5 +1,5 @@
 {
-    "name": "drupal/field_group_background_and_link",
+    "name": "nelson-ph/field_group_background_and_link",
     "type": "drupal-module",
     "description": "Field Group Background Image, Background Color and Link",
     "keywords": [
