@@ -17,5 +17,11 @@
             "name": "Nelson PIRES HASSANALI",
             "email": "nelson.hassanali@gmail.com"
         }
+    ],
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://packages.drupal.org/8"
+        }
     ]
 }
