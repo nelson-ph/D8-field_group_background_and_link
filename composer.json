@@ -12,7 +12,6 @@
         "phpro/grumphp": "^0.14.0",
         "jakub-onderka/php-parallel-lint": "^1.0"
     },
-    "license": "MIT",
     "authors": [
         {
             "name": "Nelson PIRES HASSANALI",
