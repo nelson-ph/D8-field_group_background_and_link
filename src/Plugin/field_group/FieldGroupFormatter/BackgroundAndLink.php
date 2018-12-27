@@ -60,7 +60,7 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       $attributes['style'] = $style;
     }
 
-    if ($linkValue = $this->linkValue($renderingObject, $link)) {
+    if ($link && $linkValue = $this->linkValue($renderingObject, $link)) {
       $element['#tag']    = 'a';
       $attributes['href'] = Url::fromUri($linkValue['uri'])->toString();
       if (!empty($linkValue['options']['attributes']) && is_array($linkValue['options']['attributes'])) {
