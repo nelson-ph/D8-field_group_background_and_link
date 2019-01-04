@@ -24,8 +24,8 @@ use Drupal\media\Entity\Media;
  * @FieldGroupFormatter(
  *   id = "background_and_link",
  *   label = @Translation("Background Image, Color and Link"),
- *   description = @Translation("Field group as a background image, background color or/and link."),
- *   supported_contexts = {
+ *   description = @Translation("Field group as a background image, background
+ *   color or/and link."), supported_contexts = {
  *     "view",
  *   }
  * )
@@ -49,18 +49,18 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
 
     // Render the element as a HTML div and add the attributes.
     $element['#type'] = 'container_tag';
-    $element['#tag'] = 'div';
+    $element['#tag']  = 'div';
 
     // Add the image as a background.
-    $image = $this->getSetting('image');
+    $image      = $this->getSetting('image');
     $imageStyle = $this->getSetting('image_style');
-    $color = $this->getSetting('color');
-    $link = $this->getSetting('link');
+    $color      = $this->getSetting('color');
+    $link       = $this->getSetting('link');
     if ($style = $this->generateStyleAttribute($renderingObject, $image, $imageStyle, $color)) {
       $attributes['style'] = $style;
     }
 
-    if ($link && $linkValue = $this->linkValue($renderingObject, $link)) {
+    if ($link && ($linkValue = $this->linkValue($renderingObject, $link))) {
       $element['#tag']    = 'a';
       $attributes['href'] = Url::fromUri($linkValue['uri'])->toString();
       if (!empty($linkValue['options']['attributes']) && is_array($linkValue['options']['attributes'])) {
@@ -69,19 +69,40 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
         }
       }
     }
+    elseif ($this->getSetting('link_to_entity')) {
+      $element['#tag']    = 'a';
+      $attributes['href'] = $this->getEntityUrl($renderingObject)->toString();
+    }
 
-    if(empty($style)){
+    if (empty($style)) {
       if ($this->getSetting('hide_if_missing_image') || $this->getSetting('hide_if_missing_color')) {
         hide($element);
       }
     }
-    if(empty($linkValue)){
+    if (empty($linkValue)) {
       if ($this->getSetting('hide_if_missing_link')) {
         hide($element);
       }
     }
 
     $element['#attributes'] = $attributes;
+  }
+
+  /**
+   * Gets all HTML classes, cleaned for displaying.
+   *
+   * @return array
+   *   Classes.
+   */
+  protected function getClasses() {
+    $classes   = parent::getClasses();
+    $classes[] = 'field-group-background-and-link';
+    $classes   = array_map([
+      '\Drupal\Component\Utility\Html',
+      'getClass',
+    ], $classes);
+
+    return $classes;
   }
 
   /**
@@ -102,9 +123,9 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   protected function generateStyleAttribute($renderingObject, $image, $imageStyle, $color) {
     $style = [];
 
-    $validImage = array_key_exists($image, $this->imageFields());
+    $validImage      = array_key_exists($image, $this->imageFields());
     $validImageStyle = ($imageStyle === '') || array_key_exists($imageStyle, image_style_options(FALSE));
-    $validColor = array_key_exists($color, $this->colorFields());
+    $validColor      = array_key_exists($color, $this->colorFields());
 
     if ($validImage && $validImageStyle) {
       if ($url = $this->imageUrl($renderingObject, $image, $imageStyle)) {
@@ -122,17 +143,45 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   }
 
   /**
-   * Gets all HTML classes, cleaned for displaying.
+   * Get all image fields for the current entity and bundle.
    *
    * @return array
-   *   Classes.
+   *   Image field key value pair.
    */
-  protected function getClasses() {
-    $classes = parent::getClasses();
-    $classes[] = 'field-group-background-and-link';
-    $classes = array_map(['\Drupal\Component\Utility\Html', 'getClass'], $classes);
+  protected function imageFields() {
 
-    return $classes;
+    $entityFieldManager = \Drupal::service('entity_field.manager');
+    $fields             = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
+
+    $imageFields = [];
+    foreach ($fields as $field) {
+      if ($field->getType() === 'image' || ($field->getType() === 'entity_reference' && $field->getSetting('target_type') == 'media')) {
+        $imageFields[$field->get('field_name')] = $field->label();
+      }
+    }
+
+    return $imageFields;
+  }
+
+  /**
+   * Get all color fields for the current entity and bundle.
+   *
+   * @return array
+   *   Color field key value pair.
+   */
+  protected function colorFields() {
+
+    $entityFieldManager = \Drupal::service('entity_field.manager');
+    $fields             = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
+
+    $colorFields = [];
+    foreach ($fields as $field) {
+      if ($field->getType() === 'color_field_type') {
+        $colorFields[$field->get('field_name')] = $field->label();
+      }
+    }
+
+    return $colorFields;
   }
 
   /**
@@ -156,7 +205,8 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       return $imageUrl;
     }
 
-    if ($imageFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)->getValue()) {
+    if ($imageFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)
+      ->getValue()) {
 
       // Fid for image or entity_id.
       if (!empty($imageFieldValue[0]['target_id'])) {
@@ -218,8 +268,9 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       return $colorCode;
     }
 
-    if ($colorFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)->getValue()) {
-      if(!empty($colorFieldValue[0]['color'])){
+    if ($colorFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)
+      ->getValue()) {
+      if (!empty($colorFieldValue[0]['color'])) {
         $colorCode = $colorFieldValue[0]['color'];
       }
     }
@@ -246,7 +297,8 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       return $linkValue;
     }
 
-    if ($linkFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)->getValue()) {
+    if ($linkFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)
+      ->getValue()) {
       $linkValue = reset($linkFieldValue);
     }
 
@@ -254,45 +306,112 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   }
 
   /**
-   * Get all image fields for the current entity and bundle.
+   * @param $renderingObject
    *
-   * @return array
-   *   Image field key value pair.
+   * @return bool|\Drupal\Core\Url
+   * @throws \Drupal\Core\Entity\EntityMalformedException
    */
-  protected function imageFields() {
+  protected function getEntityUrl($renderingObject) {
+    $url = FALSE;
 
-    $entityFieldManager = \Drupal::service('entity_field.manager');
-    $fields = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
-
-    $imageFields = [];
-    foreach ($fields as $field) {
-      if ($field->getType() === 'image' || ($field->getType() === 'entity_reference' && $field->getSetting('target_type') == 'media')) {
-        $imageFields[$field->get('field_name')] = $field->label();
-      }
+    /* @var \Drupal\Core\Entity\EntityInterface $entity */
+    if (!($entity = $renderingObject['#' . $this->group->entity_type])) {
+      return $url;
     }
 
-    return $imageFields;
+    return $entity->toUrl();
   }
 
   /**
-   * Get all color fields for the current entity and bundle.
-   *
-   * @return array
-   *   Color field key value pair.
+   * {@inheritdoc}
    */
-  protected function colorFields() {
+  public function settingsForm() {
+    $form = parent::settingsForm();
 
-    $entityFieldManager = \Drupal::service('entity_field.manager');
-    $fields = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
+    $form['label']['#access'] = FALSE;
 
-    $colorFields = [];
-    foreach ($fields as $field) {
-      if ($field->getType() === 'color_field_type') {
-        $colorFields[$field->get('field_name')] = $field->label();
-      }
+    if ($imageFields = $this->imageFields()) {
+      $form['image']             = [
+        '#title'         => $this->t('Image'),
+        '#type'          => 'select',
+        '#options'       => [
+          '' => $this->t('- Select -'),
+        ],
+        '#default_value' => $this->getSetting('image'),
+        '#weight'        => 1,
+      ];
+      $form['image']['#options'] += $imageFields;
+
+      $form['image_style']             = [
+        '#title'         => $this->t('Image style'),
+        '#type'          => 'select',
+        '#options'       => [
+          '' => $this->t('- Select -'),
+        ],
+        '#default_value' => $this->getSetting('image_style'),
+        '#weight'        => 2,
+      ];
+      $form['image_style']['#options'] += image_style_options(FALSE);
+
+      $form['hide_if_missing_image'] = [
+        '#type'          => 'checkbox',
+        '#title'         => $this->t('Hide if missing image'),
+        '#description'   => $this->t('Do not render the field group if the image is missing from the selected field.'),
+        '#default_value' => $this->getSetting('hide_if_missing_image'),
+        '#weight'        => 3,
+      ];
     }
 
-    return $colorFields;
+    if ($colorFields = $this->colorFields()) {
+      $form['color']             = [
+        '#title'         => $this->t('Color'),
+        '#type'          => 'select',
+        '#options'       => [
+          '' => $this->t('- Select -'),
+        ],
+        '#default_value' => $this->getSetting('color'),
+        '#weight'        => 1,
+      ];
+      $form['color']['#options'] += $colorFields;
+
+      $form['hide_if_missing_color'] = [
+        '#type'          => 'checkbox',
+        '#title'         => $this->t('Hide if missing color'),
+        '#description'   => $this->t('Do not render the field group if the color is missing from the selected field.'),
+        '#default_value' => $this->getSetting('hide_if_missing_color'),
+        '#weight'        => 3,
+      ];
+    }
+
+    if ($linkFields = $this->linkFields()) {
+      $form['link']             = [
+        '#title'         => $this->t('Link'),
+        '#type'          => 'select',
+        '#options'       => [
+          '' => $this->t('- Select -'),
+        ],
+        '#default_value' => $this->getSetting('link'),
+        '#weight'        => 1,
+      ];
+      $form['link']['#options'] += $linkFields;
+
+      $form['hide_if_missing_link'] = [
+        '#type'          => 'checkbox',
+        '#title'         => $this->t('Hide if missing link'),
+        '#description'   => $this->t('Do not render the field group if the link is missing from the selected field.'),
+        '#default_value' => $this->getSetting('hide_if_missing_link'),
+        '#weight'        => 3,
+      ];
+    }
+    else {
+      $form['link_to_entity'] = [
+        '#type'          => 'checkbox',
+        '#title'         => $this->t('Link to the entity'),
+        '#default_value' => $this->getSetting('link_to_entity'),
+      ];
+    }
+
+    return $form;
   }
 
   /**
@@ -304,7 +423,7 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   protected function linkFields() {
 
     $entityFieldManager = \Drupal::service('entity_field.manager');
-    $fields = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
+    $fields             = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
 
     $linkFields = [];
     foreach ($fields as $field) {
@@ -319,114 +438,26 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   /**
    * {@inheritdoc}
    */
-  public function settingsForm() {
-    $form = parent::settingsForm();
-
-    $form['label']['#access'] = FALSE;
-
-    if ($imageFields = $this->imageFields()) {
-      $form['image'] = [
-        '#title' => $this->t('Image'),
-        '#type' => 'select',
-        '#options' => [
-          '' => $this->t('- Select -'),
-        ],
-        '#default_value' => $this->getSetting('image'),
-        '#weight' => 1,
-      ];
-      $form['image']['#options'] += $imageFields;
-
-      $form['image_style'] = [
-        '#title' => $this->t('Image style'),
-        '#type' => 'select',
-        '#options' => [
-          '' => $this->t('- Select -'),
-        ],
-        '#default_value' => $this->getSetting('image_style'),
-        '#weight' => 2,
-      ];
-      $form['image_style']['#options'] += image_style_options(FALSE);
-
-      $form['hide_if_missing_image'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Hide if missing image'),
-        '#description' => $this->t('Do not render the field group if the image is missing from the selected field.'),
-        '#default_value' => $this->getSetting('hide_if_missing_image'),
-        '#weight' => 3,
-      ];
-    }
-
-    if ($colorFields = $this->colorFields()) {
-      $form['color'] = [
-        '#title' => $this->t('Color'),
-        '#type' => 'select',
-        '#options' => [
-          '' => $this->t('- Select -'),
-        ],
-        '#default_value' => $this->getSetting('color'),
-        '#weight' => 1,
-      ];
-      $form['color']['#options'] += $colorFields;
-
-      $form['hide_if_missing_color'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Hide if missing color'),
-        '#description' => $this->t('Do not render the field group if the color is missing from the selected field.'),
-        '#default_value' => $this->getSetting('hide_if_missing_color'),
-        '#weight' => 3,
-      ];
-    }
-
-    if ($linkFields = $this->linkFields()) {
-      $form['link'] = [
-        '#title' => $this->t('Link'),
-        '#type' => 'select',
-        '#options' => [
-          '' => $this->t('- Select -'),
-        ],
-        '#default_value' => $this->getSetting('link'),
-        '#weight' => 1,
-      ];
-      $form['link']['#options'] += $linkFields;
-
-      $form['hide_if_missing_link'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Hide if missing link'),
-        '#description' => $this->t('Do not render the field group if the link is missing from the selected field.'),
-        '#default_value' => $this->getSetting('hide_if_missing_link'),
-        '#weight' => 3,
-      ];
-    }
-
-    else {
-      $form['error'] = [
-        '#markup' => $this->t('Please add an image field to continue.'),
-      ];
-    }
-
-    return $form;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function settingsSummary() {
     $summary = parent::settingsSummary();
 
     if ($image = $this->getSetting('image')) {
       $imageFields = $this->imageFields();
-      $summary[] = $this->t('Image field: @image', ['@image' => $imageFields[$image]]);
+      $summary[]   = $this->t('Image field: @image', ['@image' => $imageFields[$image]]);
     }
     if ($imageStyle = $this->getSetting('image_style')) {
       $summary[] = $this->t('Image style: @style', ['@style' => $imageStyle]);
     }
     if ($color = $this->getSetting('color')) {
       $colorFields = $this->colorFields();
-      $summary[] = $this->t('Color field: @image', ['@image' => $colorFields[$color]]);
+      $summary[]   = $this->t('Color field: @image', ['@image' => $colorFields[$color]]);
     }
     if ($link = $this->getSetting('link')) {
       $linkFields = $this->linkFields();
-      $summary[] = $this->t('Link field: @image', ['@image' => $linkFields[$link]]);
+      $summary[]  = $this->t('Link field: @image', ['@image' => $linkFields[$link]]);
+    }
+    if ($this->getSetting('link_to_entity')) {
+      $summary[] = $this->t('Linked to the entity');
     }
 
     return $summary;
