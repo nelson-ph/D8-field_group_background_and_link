@@ -73,6 +73,17 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       $element['#tag']    = 'a';
       $attributes['href'] = $this->getEntityUrl($renderingObject)->toString();
     }
+    elseif ($this->getSetting('link_to_file')) {
+      $file = $this->mediaFile($renderingObject, $this->getSetting('link_to_file'));
+      if(!empty($file)){
+        $element['#tag']    = 'a';
+        $attributes['href'] = file_create_url($file->getFileUri());
+
+        if(!empty($this->getSetting('link_target'))){
+          $attributes['target'] = $this->getSetting('link_target');
+        }
+      }
+    }
 
     if (empty($style)) {
       if ($this->getSetting('hide_if_missing_image') || $this->getSetting('hide_if_missing_color')) {
@@ -200,9 +211,33 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   protected function imageUrl($renderingObject, $field, $imageStyle) {
     $imageUrl = '';
 
+    if (empty(($file = $this->mediaFile($renderingObject, $field)))) {
+      return $imageUrl;
+    }
+
+    // When no image style is selected, use the original image.
+    if (empty($imageStyle)) {
+      $imageUrl = file_create_url($file->getFileUri());
+    }
+    else {
+      $imageUrl = ImageStyle::load($imageStyle)->buildUrl($file->getFileUri());
+    }
+
+    return file_url_transform_relative($imageUrl);
+  }
+
+  /**
+   * @param $renderingObject
+   * @param $field
+   * @param null $imageStyle
+   *
+   * @return bool|\Drupal\Core\Entity\EntityInterface|\Drupal\file\Entity\File|null
+   */
+  protected function mediaFile($renderingObject, $field) {
+    $file = FALSE;
     /* @var EntityInterface $entity */
     if (!($entity = $renderingObject['#' . $this->group->entity_type])) {
-      return $imageUrl;
+      return $file;
     }
 
     if ($imageFieldValue = $renderingObject['#' . $this->group->entity_type]->get($field)
@@ -228,25 +263,17 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
               $field->getFieldDefinition()->getType() === 'image' &&
               $field->getFieldDefinition()->getName() !== 'thumbnail'
             ) {
-              $fileUri = $entity_media->{$field_name}->entity->getFileUri();
+              $file = $entity_media->{$field_name}->entity;
             }
           }
         }
         else {
-          $fileUri = File::load($entity_id)->getFileUri();
-        }
-
-        // When no image style is selected, use the original image.
-        if ($imageStyle === '') {
-          $imageUrl = file_create_url($fileUri);
-        }
-        else {
-          $imageUrl = ImageStyle::load($imageStyle)->buildUrl($fileUri);
+          $file = File::load($entity_id);
         }
       }
     }
 
-    return file_url_transform_relative($imageUrl);
+    return $file;
   }
 
   /**
@@ -409,6 +436,30 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
         '#title'         => $this->t('Link to the entity'),
         '#default_value' => $this->getSetting('link_to_entity'),
       ];
+
+      if ($fileFields = $this->fileFields()) {
+        $form['link_to_file']             = [
+          '#title'         => $this->t('Link to file'),
+          '#type'          => 'select',
+          '#options'       => [
+            '' => $this->t('- Select -'),
+          ],
+          '#default_value' => $this->getSetting('link_to_file'),
+          '#weight'        => 1,
+        ];
+        $form['link_to_file']['#options'] += $fileFields;
+      }
+
+      $form['link_target'] = [
+        '#type'    => 'select',
+        '#title'   => $this->t('Link target'),
+        '#options' => [
+          ''       => $this->t('- Select -'),
+          '_blank' => '_blank',
+          '_self'  => '_self',
+        ],
+      ];
+
     }
 
     return $form;
@@ -435,6 +486,20 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
     return $linkFields;
   }
 
+  protected function fileFields() {
+    $entityFieldManager = \Drupal::service('entity_field.manager');
+    $fields             = $entityFieldManager->getFieldDefinitions($this->group->entity_type, $this->group->bundle);
+
+    $targetFields = [];
+    foreach ($fields as $field) {
+      if ($field->getType() === 'file' || ($field->getType() === 'entity_reference' && $field->getSetting('target_type') == 'media')) {
+        $targetFields[$field->get('field_name')] = $field->label();
+      }
+    }
+
+    return $targetFields;
+  }
+
   /**
    * {@inheritdoc}
    */
@@ -459,8 +524,33 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
     if ($this->getSetting('link_to_entity')) {
       $summary[] = $this->t('Linked to the entity');
     }
+    if ($file = $this->getSetting('link_to_file')) {
+      $fileFields = $this->fileFields();
+      $summary[]  = $this->t('Linked to the file : @field', ['@field' => $fileFields[$file]]);
+    }
+    if ($this->getSetting('link_target')) {
+      $summary[] = $this->t('Link target : @target', ['@target' => $this->getSetting('link_target')]);
+    }
 
     return $summary;
+  }
+
+  /**
+   * @param $renderingObject
+   *
+   * @return bool|\Drupal\Core\Url
+   * @throws \Drupal\Core\Entity\EntityMalformedException
+   */
+  protected function getFileUrl($renderingObject) {
+    $url = FALSE;
+
+    /* @var \Drupal\Core\Entity\EntityInterface $entity */
+    if (!($entity = $renderingObject['#' . $this->group->entity_type])) {
+      return $url;
+    }
+
+
+    return $entity->toUrl();
   }
 
 }
