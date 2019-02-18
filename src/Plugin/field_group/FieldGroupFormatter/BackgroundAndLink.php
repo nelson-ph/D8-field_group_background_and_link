@@ -39,6 +39,19 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
 
     $attributes = new Attribute();
 
+    if ($this->getSetting('attributes')) {
+
+      // This regex split the attributes string so that we can pass that
+      // later to drupal_attributes().
+      preg_match_all('/([^\s=]+)="([^"]+)"/', $this->getSetting('attributes'), $matches);
+
+      // Put the attribute and the value together.
+      foreach ($matches[1] as $key => $attribute) {
+        $attributes[$attribute] = $matches[2][$key];
+      }
+
+    }
+
     // Add the HTML ID.
     if ($id = $this->getSetting('id')) {
       $attributes['id'] = Html::getId($id);
@@ -472,6 +485,14 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
 
     }
 
+    $form['attributes'] = [
+      '#title' => $this->t('Attributes'),
+      '#type' => 'textfield',
+      '#default_value' => $this->getSetting('attributes'),
+      '#description' => $this->t('E.g. name="anchor"'),
+      '#weight' => 5,
+    ];
+
     return $form;
   }
 
@@ -540,6 +561,11 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
     }
     if ($this->getSetting('link_target')) {
       $summary[] = $this->t('Link target : @target', ['@target' => $this->getSetting('link_target')]);
+    }
+    if ($this->getSetting('attributes')) {
+      $summary[] = $this->t('Attributes: @attributes',
+        ['@attributes' => $this->getSetting('attributes')]
+      );
     }
 
     return $summary;
