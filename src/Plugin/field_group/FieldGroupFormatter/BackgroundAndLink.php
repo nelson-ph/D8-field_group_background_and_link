@@ -74,12 +74,12 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       $attributes['href'] = $this->getEntityUrl($renderingObject)->toString();
     }
     elseif ($this->getSetting('link_to_file')) {
-      $file = $this->mediaFile($renderingObject, $this->getSetting('link_to_file'));
-      if(!empty($file)){
+      $file_url = $this->mediaFile($renderingObject, $this->getSetting('link_to_file'));
+      if (!empty($file_url)) {
         $element['#tag']    = 'a';
-        $attributes['href'] = file_create_url($file->getFileUri());
+        $attributes['href'] = $file_url;
 
-        if(!empty($this->getSetting('link_target'))){
+        if (!empty($this->getSetting('link_target'))) {
           $attributes['target'] = $this->getSetting('link_target');
         }
       }
@@ -265,6 +265,12 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
             ) {
               $file = $entity_media->{$field_name}->entity;
             }
+            if (
+              $field->getFieldDefinition()->getType() === 'video_embed_field'
+            ) {
+              return $entity_media->{$field->getFieldDefinition()
+                ->getName()}->value;
+            }
           }
         }
         else {
@@ -273,7 +279,11 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       }
     }
 
-    return $file;
+    if (!$file) {
+      return FALSE;
+    }
+
+    return file_create_url($file->getFileUri());
   }
 
   /**
