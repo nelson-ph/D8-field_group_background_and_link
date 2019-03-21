@@ -510,7 +510,7 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
     $linkFields = [];
     foreach ($fields as $field) {
       if ($field->getType() === 'link') {
-        $linkFields[$field->get('field_name')] = $field->label();
+        $linkFields[$field->getName()] = method_exists($field, 'label') ? $field->label() : $field->getName();
       }
     }
 
