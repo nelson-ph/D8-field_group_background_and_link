@@ -78,7 +78,9 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
       $attributes['href'] = Url::fromUri($linkValue['uri'])->toString();
       if (!empty($linkValue['options']['attributes']) && is_array($linkValue['options']['attributes'])) {
         foreach ($linkValue['options']['attributes'] as $key => $value) {
-          $attributes[$key] = $value;
+          if (empty($attributes[$key])) {
+            $attributes[$key] = $value;
+          }
         }
       }
     }
