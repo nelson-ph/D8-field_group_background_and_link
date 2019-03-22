@@ -14,6 +14,8 @@ use Drupal\Component\Utility\Html;
 use Drupal\Core\Template\Attribute;
 use Drupal\Core\Url;
 use Drupal\field_group\FieldGroupFormatterBase;
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\file\Entity\File;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\media\Entity\Media;
