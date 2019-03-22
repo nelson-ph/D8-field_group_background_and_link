@@ -366,9 +366,13 @@ class BackgroundAndLink extends FieldGroupFormatterBase {
   protected function getEntityUrl($renderingObject) {
     $url = FALSE;
 
-    /* @var \Drupal\Core\Entity\EntityInterface $entity */
+    /* @var ContentEntityInterface $entity */
     if (!($entity = $renderingObject['#' . $this->group->entity_type])) {
       return $url;
+    }
+
+    if($entity->hasTranslation($current_langcode = \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_CONTENT)->getId())){
+      $entity = $entity->getTranslation($current_langcode);
     }
 
     return $entity->toUrl();
